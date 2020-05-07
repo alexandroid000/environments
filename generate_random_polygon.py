@@ -218,7 +218,6 @@ def _to_random_boolean():
 # so we will use a tree
 
 from scipy.spatial import distance_matrix
-
 def random_tree(N):
     rooms = 200.*np.random.rand(N,2)
     nodes = {i:rooms[i] for i in range(N)}
@@ -229,42 +228,93 @@ def random_tree(N):
                 G.add_edge(i, j, weight=la.norm(rooms[i]-rooms[j]))
     T = nx.minimum_spanning_tree(G)
     corridors = T.edges
-    return corridors, rooms
+    return corridors, rooms, T
 
+from enum import IntEnum
+class Hallway_Type(IntEnum):
+    # The width of the door is proportional to the size of the room. The smaller room of the corridor has its door size halved to ensure the corridor is still funnel when the room sizes are very similar.
+    ROOM_SIZE = 1
 
+    # One room is chosen randomly to have a larger door width than the other.
+    RANDOM_DIRECTION = 2
 
-def genTreeEnv(num_rooms, rooms, corridors):
+    # Each corridor connects two doors of the same width.
+    STRAIGHT = 3
 
+    # The width of the corridor is constant and proportional to the minimum room size in the whole environment.
+    CONSTANT = 4
+
+def genTreeEnv(num_rooms, room_vx_size, rooms, corridors, tree_map, hallway_type = Hallway_Type.ROOM_SIZE):
+#     The room size is proportional to the length of shortest incident edge.
     polygon_list = []
-    min_room_size = 800
-
+    room_size_list = []
+    
+#     Corridor size over room size
+    cr = 0.1 
     # Generate convex "room" at each point
     for i in range(num_rooms):
-        poly = to_convex_contour(20)
-        room_size = 0.5 * min(la.norm(rooms[i] - rooms[(i+1)%num_rooms]), la.norm(rooms[i] - rooms[i-1]))
+        poly = to_convex_contour(room_vx_size)
+        neighbors = [n for n in tree_map.neighbors(i)]
+        room_size = 0.8 * min([la.norm(rooms[i] - rooms[(n)]) for n in neighbors])
+        room_size_list.append(room_size)
         poly *= room_size
         poly = np.array([point + rooms[i] for point in poly])
         polygon_list.append(shapely.geometry.Polygon(poly))
-        min_room_size = min(min_room_size, room_size)
+    
+    min_room_size = min(room_size_list)
 
+    funnel_direction = []
     # Get corridors
     for (start, end) in corridors:
         corridor_direction = rooms[start] - rooms[end]
         corridor_width_direction = np.array([corridor_direction[1], -corridor_direction[0]])
         corridor_width_direction /= la.norm(corridor_width_direction)
-        corridor_width = min_room_size * 0.1
-        corridor_point_list = [rooms[start] + corridor_width_direction * corridor_width,
-                               rooms[end] + corridor_width_direction * corridor_width,
-                               rooms[end] - corridor_width_direction * corridor_width,
-                               rooms[start] - corridor_width_direction * corridor_width]
+        corridor_width = min_room_size * cr
+        start_width, end_width = 0, 0
+        if hallway_type == Hallway_Type.ROOM_SIZE:
+            start_width = room_size_list[start] * cr
+            end_width = room_size_list[end] * cr
+            if start_width > end_width:
+                end_width *= 0.5
+            else:
+                start_width *= 0.5
+        elif hallway_type == Hallway_Type.RANDOM_DIRECTION:
+            if (random.random() > 0.5):
+                funnel_direction.append(1)
+                start_width = room_size_list[start] * cr
+                end_width = start_width * 0.1
+            else:
+                end_width = room_size_list[end] * cr
+                start_width = end_width * 0.1
+                funnel_direction.append(-1)
+        elif hallway_type == Hallway_Type.STRAIGHT:
+            door_width = min(room_size_list[start], room_size_list[end]) * cr
+            start_width = room_size_list[start] * cr
+            end_width = room_size_list[end] * cr
+        elif hallway_type == Hallway_Type.CONSTANT:
+            start_width = min_room_size * cr
+            end_width = min_room_size * cr
+            
+        corridor_point_list = [rooms[start] + corridor_width_direction * start_width,
+                               rooms[end] + corridor_width_direction * end_width,
+                               rooms[end] - corridor_width_direction * end_width,
+                               rooms[start] - corridor_width_direction * start_width]
         polygon_list.append(shapely.geometry.Polygon(corridor_point_list))
 
     map = cascaded_union(polygon_list)
 
-    #plt.plot(*map.exterior.xy)
-    #plt.show()
+    fig, ax = plt.subplots()
 
-    return map.exterior.xy
+    plt.plot(*map.exterior.xy)
+    ax.set_aspect('equal')
+    ax.axis('off')
+    plt.savefig('poly_{}_{}.png'.format(num_rooms, room_vx_size), bbox_inches='tight')
+
+    map_vx = []
+    for i in range(len((map.exterior.xy[0]))):
+        map_vx.append([map.exterior.xy[0][i], map.exterior.xy[1][i]])
+                   
+    return np.array(map_vx)
 
 
 def makeCollection():

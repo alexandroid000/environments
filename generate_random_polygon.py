@@ -100,11 +100,11 @@ def generatePolygon( ctrX, ctrY, aveRadius, irregularity, spikeyness, numVerts )
         r_i = clip( random.gauss(aveRadius, spikeyness), 0, 2*aveRadius )
         x = ctrX + r_i*math.cos(angle)
         y = ctrY + r_i*math.sin(angle)
-        points.append( (int(x),int(y)) )
+        points.append( (x,y) )
 
         angle = angle + angleSteps[i]
 
-    return points
+    return np.array(points)
 
 def clip(x, min, max) :
     if( min > max ) :  return x    
@@ -123,8 +123,9 @@ def generatePolygonsGrid(N, irr_min, irr_max, spike_min, spike_max):
         for s in spike_vals:
             verts = generatePolygon(ctrX=250, ctrY=250, aveRadius=100,
                                     irregularity=i, spikeyness=s, numVerts=20)
-            polygon_list.append(verts)
-            draw_polygon(verts)
+            polygon_list.append( ((s,i),verts) )
+            #draw_polygon(verts)
+
     return polygon_list
 
 #verts = generatePolygon( ctrX=250, ctrY=250, aveRadius=100, irregularity=0.35, spikeyness=0.3, numVerts=20 )
@@ -260,8 +261,8 @@ def genTreeEnv(num_rooms, rooms, corridors):
 
     map = cascaded_union(polygon_list)
 
-    plt.plot(*map.exterior.xy)
-    plt.show()
+    #plt.plot(*map.exterior.xy)
+    #plt.show()
 
     return map.exterior.xy
 

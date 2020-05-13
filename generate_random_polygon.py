@@ -15,6 +15,7 @@ import math
 from math import atan2
 import random
 import networkx as nx
+from settings import *
 
 ### Visualization
 
@@ -314,7 +315,10 @@ def genTreeEnv(num_rooms, room_vx_size, rooms, corridors, tree_map, hallway_type
     for i in range(len((map.exterior.xy[0]))):
         map_vx.append([map.exterior.xy[0][i], map.exterior.xy[1][i]])
                    
-    return np.array(map_vx)
+    map_vx = np.array(map_vx)
+    map_vx = map_vx[:-1]
+    map_vx = map_vx[::-1]
+    return map_vx
 
 
 def makeCollection():

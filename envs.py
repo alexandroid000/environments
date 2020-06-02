@@ -19,9 +19,8 @@ def spike_annulus(L):
                            np.array(mk_spiky_circle(8, 0.5*L)),
                            [np.array(mk_obstacle(mk_regpoly(4, 0.4*L)))])
 
-square_hole = Simple_Polygon("sqh",simple_holes[0], simple_holes[1])
-l_poly = [np.array([(0, 0), (60, 0), (60, 23), (26, 23), (26, 46), (0, 46)],
-dtype=np.float)]
+def square_hole():
+    return Simple_Polygon("sqh",simple_holes[0], simple_holes[1])
 
 def shelfp():
     return Simple_Polygon("shelf",shelf[0])
